@@ -98,6 +98,16 @@ RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
 # multi-stage for running
 FROM $FROM_IMAGE AS runner
 
+# temp hack
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y \
+      python3-pip \
+    && pip3 install \
+      git+https://github.com/ros-infrastructure/rosdep.git \
+    && rosdep update \
+    && rm -rf /var/lib/apt/lists/*
+
 # install overlay exec dependencies
 ARG OVERLAY_WS
 WORKDIR $OVERLAY_WS
