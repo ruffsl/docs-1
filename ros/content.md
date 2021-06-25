@@ -73,7 +73,7 @@ RUN mkdir -p /tmp/opt && \
 # multi-stage for building
 FROM $FROM_IMAGE AS builder
 
-# install overlay dependencies
+# install overlay build dependencies
 ARG OVERLAY_WS
 WORKDIR $OVERLAY_WS
 COPY --from=cacher /tmp/$OVERLAY_WS/src ./src
@@ -94,6 +94,29 @@ RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
         demo_nodes_cpp \
         demo_nodes_py \
       --mixin $OVERLAY_MIXINS
+
+# multi-stage for running
+FROM $FROM_IMAGE AS runner
+
+# temp hack
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y \
+      python3-pip \
+    && pip3 install \
+      git+https://github.com/ros-infrastructure/rosdep.git \
+    && rosdep update \
+    && rm -rf /var/lib/apt/lists/*
+
+# install overlay exec dependencies
+ARG OVERLAY_WS
+WORKDIR $OVERLAY_WS
+COPY --from=builder $OVERLAY_WS/install ./install
+RUN . $OVERLAY_WS/install/setup.sh && \
+    apt-get update && rosdep install -y \
+      --from-paths install \
+      --dependency-types exec \
+    && rm -rf /var/lib/apt/lists/*
 
 # source entrypoint setup
 ENV OVERLAY_WS $OVERLAY_WS
