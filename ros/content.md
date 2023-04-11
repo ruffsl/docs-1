@@ -78,7 +78,8 @@ ARG OVERLAY_WS
 WORKDIR $OVERLAY_WS
 COPY --from=cacher /tmp/$OVERLAY_WS/src ./src
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
-    apt-get update && rosdep install -y \
+    apt-get update && rosdep update && \
+    rosdep install -y \
       --from-paths \
         src/ros2/demos/demo_nodes_cpp \
         src/ros2/demos/demo_nodes_py \
@@ -103,7 +104,8 @@ ARG OVERLAY_WS
 WORKDIR $OVERLAY_WS
 COPY --from=builder $OVERLAY_WS/install ./install
 RUN . $OVERLAY_WS/install/setup.sh && \
-    apt-get update && rosdep install -y \
+    apt-get update && rosdep update && \
+    rosdep install -y \
       --from-paths install \
       --dependency-types exec \
     && rm -rf /var/lib/apt/lists/*
