@@ -13,7 +13,7 @@ The Robot Operating System (ROS) is a set of software libraries and tools that h
 To create your own ROS docker images and install custom packages, here's a simple example of installing the C++, Python client library demos using the official released Debian packages via apt-get.
 
 ```dockerfile
-FROM %%IMAGE%%:foxy
+FROM %%IMAGE%%:humble
 
 # install ros package
 RUN apt-get update && apt-get install -y \
@@ -44,7 +44,7 @@ $ docker run -it --rm my/ros:app
 To create your own ROS docker images and build custom packages, here's a simple example of installing a package's build dependencies, compiling it from source, and installing the resulting build artifacts into a final multi-stage image layer.
 
 ```dockerfile
-ARG FROM_IMAGE=%%IMAGE%%:foxy
+ARG FROM_IMAGE=%%IMAGE%%:humble
 ARG OVERLAY_WS=/opt/ros/overlay_ws
 
 # multi-stage for caching
@@ -73,12 +73,13 @@ RUN mkdir -p /tmp/opt && \
 # multi-stage for building
 FROM $FROM_IMAGE AS builder
 
-# install overlay dependencies
+# install overlay build dependencies
 ARG OVERLAY_WS
 WORKDIR $OVERLAY_WS
 COPY --from=cacher /tmp/$OVERLAY_WS/src ./src
 RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
-    apt-get update && rosdep install -y \
+    apt-get update && rosdep update && \
+    rosdep install -y \
       --from-paths \
         src/ros2/demos/demo_nodes_cpp \
         src/ros2/demos/demo_nodes_py \
@@ -94,6 +95,20 @@ RUN . /opt/ros/$ROS_DISTRO/setup.sh && \
         demo_nodes_cpp \
         demo_nodes_py \
       --mixin $OVERLAY_MIXINS
+
+# multi-stage for running
+FROM $FROM_IMAGE AS runner
+
+# install overlay exec dependencies
+ARG OVERLAY_WS
+WORKDIR $OVERLAY_WS
+COPY --from=builder $OVERLAY_WS/install ./install
+RUN . $OVERLAY_WS/install/setup.sh && \
+    apt-get update && rosdep update && \
+    rosdep install -y \
+      --from-paths install \
+      --dependency-types exec \
+    && rm -rf /var/lib/apt/lists/*
 
 # source entrypoint setup
 ENV OVERLAY_WS $OVERLAY_WS
